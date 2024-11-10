@@ -6,10 +6,11 @@ wheight = 90
 Cd = 0.6
 A = 0.5
 density = 1.240088
+Crr = 0.005
 
 
 class DataPoint:
-    def __init__(self, time, lat, long, heart, cadence, distance, temperature, speed, altitude, slope, powerGravity, powerAir):
+    def __init__(self, time, lat, long, heart, cadence, distance, temperature, speed, altitude, slope, powerGravity, powerAir, powerRR):
         self.time = time
         self.lat = float(lat)
         self.long = float(long)
@@ -22,6 +23,7 @@ class DataPoint:
         self.slope = float(slope)  # radianos
         self.powerGravity = float(powerGravity)
         self.powerAir = float(powerAir)
+        self.powerRR = float(powerRR)
 
     def __repr__(self):
 
@@ -42,9 +44,13 @@ def CalculateSlope():
 
 
 def PotenciaGravidade():
+    max = 0
     for i in range(0, nPoints-1):
         force = wheight * G * math.sin(dataPoint[i].slope)
         dataPoint[i].powerGravity = force * dataPoint[i].speed
+        if dataPoint[i].powerGravity > max:
+            max = dataPoint[i].powerGravity
+    return max
 
 
 def PowerResistenceAir():
@@ -61,18 +67,38 @@ def PowerResistenceAir():
     return max
 
 
+def PowerRollingRestiance():
+    for i in range(0, nPoints-1):
+        force = wheight * G * math.cos(dataPoint[i].slope)*Crr
+        dataPoint[i].powerRR = force*dataPoint[i].speed
+
+
 dataPoint = []
 with open('/home/joaosimoes/Desktop/calculadora potencia/data copy.csv', mode='r') as file:
     csv_reader = csv.reader(file)
     headers = next(csv_reader)  # Skip the header row
     for row in csv_reader:
         point = DataPoint(time=row[0], lat=row[1], long=row[2], heart=row[3], cadence=row[4],
-                          distance=row[5], temperature=row[6], speed=row[7], altitude=row[8], slope=0, powerGravity=0, powerAir=0)
+                          distance=row[5], temperature=row[6], speed=row[7], altitude=row[8], slope=0, powerGravity=0, powerAir=0, powerRR=0)
         dataPoint.append(point)
 
 nPoints = len(dataPoint)  # I=10982
 CalculateSlope()
-PotenciaGravidade()
-max = PowerResistenceAir()
+maxGA = PotenciaGravidade()
+maxRE = PowerResistenceAir()
+PowerRollingRestiance()
 
-print(max)
+Power = []
+soma = 0
+nPositive = 0
+for i in range(0, nPoints-1):
+    power = (dataPoint[i].powerGravity +
+             dataPoint[i].powerAir + dataPoint[i].powerRR) * 1.05
+    Power.append(power)
+    if power > 0:
+        soma = soma + power
+        nPositive = nPositive + 1
+
+media = soma/nPositive
+
+print(media)
