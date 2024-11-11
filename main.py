@@ -1,6 +1,7 @@
 import csv
 import math
 import matplotlib.pyplot as plt
+from wind import wind as wind
 
 G = 9.81
 wheight = 90
@@ -107,9 +108,12 @@ for i in range(0, nPoints-1):
 
 media = soma/nPositive
 
-plt.plot(Tempo, PositivePower, label='Potência',
-         color='blue', marker='o', markersize=2)
-plt.show()
+# plt.plot(Tempo, PositivePower, label='Potência',
+#         color='blue', marker='o', markersize=2)
+# plt.show()
+(windSpeed, windDir) = wind(
+    "2024-10-01 12:00:00", dataPoint[0].lat, dataPoint[0].long)
 
-
+print(windSpeed)
+print(windDir)
 print(media)
