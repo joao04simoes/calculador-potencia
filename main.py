@@ -2,6 +2,7 @@ import csv
 import math
 import matplotlib.pyplot as plt
 from wind import wind as wind
+import pandas as pd
 
 G = 9.81
 wheight = 90
@@ -111,8 +112,12 @@ media = soma/nPositive
 # plt.plot(Tempo, PositivePower, label='Potência',
 #         color='blue', marker='o', markersize=2)
 # plt.show()
+
+
+timestamp = pd.Timestamp(dataPoint[0].time)
+rounded_timestamp = timestamp.floor("H")
 (windSpeed, windDir) = wind(
-    "2024-10-01 12:00:00", dataPoint[0].lat, dataPoint[0].long)
+    rounded_timestamp, dataPoint[0].lat, dataPoint[0].long)
 
 print(windSpeed)
 print(windDir)

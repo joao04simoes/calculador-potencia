@@ -10,7 +10,8 @@ def wind(date, lat, long):
     cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
     retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
     openmeteo = openmeteo_requests.Client(session=retry_session)
-
+    print(date.date())
+    print(date)
     # Make sure all required weather variables are listed here
     # The order of variables in hourly or daily is important to assign them correctly below
     url = "https://api.open-meteo.com/v1/forecast"
@@ -19,8 +20,8 @@ def wind(date, lat, long):
         "longitude": long,
         "hourly": ["wind_speed_10m", "wind_direction_10m"],
         "wind_speed_unit": "ms",
-        "start_date": "2024-10-01",
-        "end_date": "2024-10-01"
+        "start_date": date.date(),
+        "end_date": date.date()
     }
     responses = openmeteo.weather_api(url, params=params)
 
@@ -40,6 +41,7 @@ def wind(date, lat, long):
     hourly_data["wind_speed_10m"] = hourly_wind_speed_10m
     hourly_data["wind_direction_10m"] = hourly_wind_direction_10m
     hourly_dataframe = pd.DataFrame(data=hourly_data)
+
     # Filter to get data only for the specified hour, e.g., 12:00 PM
     # Specify the exact hour you need in UTC format
     selected_hour = date
