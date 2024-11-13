@@ -39,6 +39,13 @@ class DataPoint:
                 f"temperature={self.temperature}, speed={self.speed}, altitude={self.altitude})")
 
 
+def listCoordinates():
+    roundedlist = list(
+        {(round(item.lat, 2), round(item.long, 2)) for item in dataPoint})
+    print(roundedlist)
+    return roundedlist
+
+
 bikeConstants = BikeConstants()
 dataPoint = []
 with open('/home/joaosimoes/Desktop/calculadora potencia/data_12_11.csv', mode='r') as file:
@@ -49,17 +56,14 @@ with open('/home/joaosimoes/Desktop/calculadora potencia/data_12_11.csv', mode='
                           distance=row[5], temperature=row[6], speed=row[7], altitude=row[8])
         dataPoint.append(point)
 
-timestamp = pd.Timestamp(dataPoint[0].time)
-rounded_timestamp = timestamp.floor("H")
-(windSpeed, windDir) = wind(
-    rounded_timestamp, dataPoint[0].lat, dataPoint[0].long)
+roundedlist = listCoordinates()
 
 
 nPoints = len(dataPoint)  # I=10982
 CalculateSlope(dataPoint, nPoints)
 maxGA = PotenciaGravidade(dataPoint, nPoints, bikeConstants)
 maxRE = PowerResistenceAir(
-    dataPoint, nPoints, bikeConstants, windDir, windSpeed)
+    dataPoint, nPoints, bikeConstants, roundedlist)
 PowerRollingRestiance(dataPoint, nPoints, bikeConstants)
 
 Power = []
@@ -77,7 +81,8 @@ for i in range(0, nPoints-1):
     mediaBpm = mediaBpm + dataPoint[i].heart
     mediaSpeed = mediaSpeed + dataPoint[i].speed
 
-    if power > 0 and dataPoint[i].cadence.isdigit() and dataPoint[i].cadence != "0":
+    # and dataPoint[i].cadence.isdigit() and dataPoint[i].cadence != "0":
+    if power > 0:
         sumPower = sumPower + power
         nPositive = nPositive + 1
         Tempo.append(tem)

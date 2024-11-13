@@ -5,53 +5,73 @@ import pandas as pd
 from retry_requests import retry
 
 
-def wind(date, lat, long):
+def wind(date, roundedlist):
     # Setup the Open-Meteo API client with cache and retry on error
     cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
     retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
     openmeteo = openmeteo_requests.Client(session=retry_session)
-    print(date.date())
-    print(date)
-    # Make sure all required weather variables are listed here
-    # The order of variables in hourly or daily is important to assign them correctly below
-    url = "https://api.open-meteo.com/v1/forecast"
-    params = {
-        "latitude": lat,
-        "longitude": long,
-        "hourly": ["wind_speed_10m", "wind_direction_10m"],
-        "wind_speed_unit": "ms",
-        "start_date": date.date(),
-        "end_date": date.date()
-    }
-    responses = openmeteo.weather_api(url, params=params)
 
-    response = responses[0]
+    # URL for the Open-Meteo API
+    url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 
-    # Process hourly data. The order of variables needs to be the same as requested.
-    hourly = response.Hourly()
-    hourly_wind_speed_10m = hourly.Variables(0).ValuesAsNumpy()
-    hourly_wind_direction_10m = hourly.Variables(1).ValuesAsNumpy()
+    # Dictionary to hold dataframes for each location
+    location_dataframes = {}
 
-    hourly_data = {"date": pd.date_range(
-        start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
-        end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
-        freq=pd.Timedelta(seconds=hourly.Interval()),
-        inclusive="left"
-    )}
-    hourly_data["wind_speed_10m"] = hourly_wind_speed_10m
-    hourly_data["wind_direction_10m"] = hourly_wind_direction_10m
-    hourly_dataframe = pd.DataFrame(data=hourly_data)
+    # Loop over each unique location in roundedlist
+    for lat, long in roundedlist:
+        params = {
+            "latitude": lat,
+            "longitude": long,
+            "minutely_15": ["wind_speed_10m", "wind_direction_10m"],
+            "wind_speed_unit": "ms",
+            "start_date": date.date(),
+            "end_date": date.date()
+        }
 
-    # Filter to get data only for the specified hour, e.g., 12:00 PM
-    # Specify the exact hour you need in UTC format
-    selected_hour = date
-    hourly_dataframe["date"] = pd.to_datetime(
-        hourly_dataframe["date"], utc=True)  # Ensure 'date' is in datetime format
-    hourly_data_single_hour = hourly_dataframe[hourly_dataframe["date"]
-                                               == selected_hour]
+        # Make the API request
+        responses = openmeteo.weather_api(url, params=params)
+        response = responses[0]
 
-    date_value = hourly_data_single_hour["date"].values[0]
-    wind_speed_value = hourly_data_single_hour["wind_speed_10m"].values[0]
-    wind_direction_value = hourly_data_single_hour["wind_direction_10m"].values[0]
+        # Process the data for minutely_15 (interval data)
+        minutely_15 = response.Minutely15()
+        minutely_15_wind_speed_10m = minutely_15.Variables(0).ValuesAsNumpy()
+        minutely_15_wind_direction_10m = minutely_15.Variables(
+            1).ValuesAsNumpy()
 
-    return (wind_speed_value, wind_direction_value)
+        # Create a DataFrame for the current location
+        minutely_15_data = {
+            "date": pd.date_range(
+                start=pd.to_datetime(minutely_15.Time(), unit="s", utc=True),
+                end=pd.to_datetime(minutely_15.TimeEnd(), unit="s", utc=True),
+                freq=pd.Timedelta(seconds=minutely_15.Interval()),
+                inclusive="left"
+            ),
+            "wind_speed_10m": minutely_15_wind_speed_10m,
+            "wind_direction_10m": minutely_15_wind_direction_10m
+        }
+        minutely_15_dataframe = pd.DataFrame(data=minutely_15_data)
+
+        # Add the DataFrame to the dictionary with coordinates as the key
+        location_dataframes[(lat, long)] = minutely_15_dataframe
+
+    return location_dataframes
+
+
+def WindSpeedAndDir(dataPoint, i, location_dataframes):
+    timestamp = pd.Timestamp(dataPoint[i].time,)
+    rounded_timestamp = timestamp - \
+        pd.Timedelta(minutes=timestamp.minute %
+                     15, seconds=timestamp.second, microseconds=timestamp.microsecond)
+
+    selected_hour = rounded_timestamp
+    minutely_15_dataframe = location_dataframes[(
+        round(dataPoint[i].lat, 2)), (round(dataPoint[i].long, 2))]
+    minutely_15_dataframe["date"] = pd.to_datetime(
+        minutely_15_dataframe["date"], utc=True)  # Ensure 'date' is in datetime format
+    minutely_15_data_single_hour = minutely_15_dataframe[minutely_15_dataframe["date"]
+                                                         == selected_hour]
+
+    # date_value = minutely_15_data_single_hour["date"].values[0]
+    wind_speed_value = minutely_15_data_single_hour["wind_speed_10m"].values[0]
+    wind_direction_value = minutely_15_data_single_hour["wind_direction_10m"].values[0]
+    return (wind_direction_value, wind_speed_value)

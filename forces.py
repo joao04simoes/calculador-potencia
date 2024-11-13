@@ -1,4 +1,6 @@
 import math
+from wind import WindSpeedAndDir, wind
+import pandas as pd
 
 
 def CalculateSlope(dataPoint, nPoints,):
@@ -23,11 +25,19 @@ def PotenciaGravidade(dataPoint, nPoints, bikeConstants):
     return max
 
 
-def PowerResistenceAir(dataPoint, nPoints, bikeConstants, windDir, windSpeed,):
+def PowerResistenceAir(dataPoint, nPoints, bikeConstants, roundedlist):
+    timestamp = pd.Timestamp(dataPoint[0].time,)
+    rounded_timestamp = timestamp - \
+        pd.Timedelta(minutes=timestamp.minute %
+                     15, seconds=timestamp.second, microseconds=timestamp.microsecond)
     max = 0
     soma = 0
     wFavor = 0
+    minutely_15_dataframe = wind(
+        rounded_timestamp, roundedlist)
     for i in range(0, nPoints-1):
+        (windDir, windSpeed) = WindSpeedAndDir(
+            dataPoint, i, minutely_15_dataframe)
         wFavor = windFavor(dataPoint, windDir, windSpeed, i)
         # wFavor = 0
         # print(wFavor)
